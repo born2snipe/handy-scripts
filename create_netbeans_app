@@ -1,0 +1,1 @@
+groovy $HANDY_SCRIPTS_HOME/create_netbeans_app.groovy $@
