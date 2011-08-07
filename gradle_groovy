@@ -1,0 +1,49 @@
+# create basic gradle file for a groovy project
+echo 'apply plugin: "idea"
+apply plugin: "groovy"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    groovy group: "org.codehaus.groovy", name: "groovy", version: "1.7.10"
+    testCompile group: "junit", name: "junit", version: "4.8.2"
+}
+
+' > build.gradle
+
+# create source directories 
+mkdir src src/main src/main/groovy src/test src/test/groovy src/main/resources src/test/resources
+
+# create a simple production class
+echo 'class App {
+  static void main(String[] args) {
+    println "Hello World"
+  }
+}' > App.groovy && mv App.groovy src/main/groovy
+
+# create a simple test class
+echo '
+import org.junit.Test
+import static junit.framework.Assert.*
+
+class AppTest {
+  @Test
+  public void test() {
+    assertTrue(true)
+  }
+}' > AppTest.groovy && mv AppTest.groovy src/test/groovy
+
+# setup the vcs
+git init
+echo '*.i*
+build
+.gradle
+' > .gitignore
+
+git add . && git commit -am "initial"
+
+# prepare the intellij files
+gradle idea build
+
