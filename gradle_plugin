@@ -1,0 +1,82 @@
+# create basic gradle file for a gradle plugin
+echo 'apply plugin: "idea"
+apply plugin: "groovy"
+apply plugin: "maven"
+
+group = "b2s"
+version = "0.1-SNAPSHOT"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile gradleApi()
+    groovy localGroovy()
+    testCompile group: "junit", name: "junit", version: "4.8.2"
+}
+
+' > build.gradle
+
+# create source directories 
+mkdir src src/main src/main/groovy src/test src/test/groovy src/main/resources 
+mkdir src/test/resources src/main/resources/META-INF src/main/resources/META-INF/gradle-plugins
+mkdir src/main/groovy/org src/main/groovy/org/gradle src/main/groovy/org/gradle/plugin
+mkdir src/test/groovy/org src/test/groovy/org/gradle src/test/groovy/org/gradle/plugin
+
+# create gradle META-INF file
+echo 'implementation-class=org.gradle.plugin.EchoPlugin' > echo.properties && mv echo.properties src/main/resources/META-INF/gradle-plugins
+
+# create plugin convention
+echo '
+package org.gradle.plugin
+
+class EchoPluginConvention {
+  String message
+}' > EchoPluginConvention.groovy && mv EchoPluginConvention.groovy src/main/groovy/org/gradle/plugin
+
+# create a simple plugin class
+echo '
+package org.gradle.plugin
+
+import org.gradle.api.Project
+import org.gradle.api.Plugin
+
+class EchoPlugin implements Plugin<Project> {
+  def void apply(Project project) {
+    project.convention.plugins.echo = new EchoPluginConvention()
+    project.task("echo") << { println project.convention.plugins.echo.message }
+  }
+}' > EchoPlugin.groovy && mv EchoPlugin.groovy src/main/groovy/org/gradle/plugin
+
+# create plugin testcase
+echo '
+package org.gradle.plugin
+
+import org.gradle.api.Project
+import org.gradle.testfixtures.ProjectBuilder
+import org.junit.Test
+import static junit.framework.Assert.*
+
+class EchoPluginTest {
+  @Test
+  public void pluginAddsTaskToProject() {
+    Project project = ProjectBuilder.builder().build()
+    project.apply plugin: "echo"
+
+    assertNotNull(project.tasks["echo"])
+  }
+}' > EchoPluginTest.groovy && mv EchoPluginTest.groovy src/test/groovy/org/gradle/plugin
+
+# setup the vcs
+git init
+echo '*.i*
+build
+.gradle
+' > .gitignore
+
+git add . && git commit -am "initial"
+
+# prepare the intellij files
+gradle idea build
+
