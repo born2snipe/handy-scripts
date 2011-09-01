@@ -1,0 +1,245 @@
+#!/bin/bash
+
+function setupGit {
+  echo 'target
+*.i*' > .gitignore
+  git init && git add . && git commit -am "initial"
+}
+
+function setupMavenDirs {
+  mkdir $ARTIFACT_ID $ARTIFACT_ID/src $ARTIFACT_ID/src/main $ARTIFACT_ID/src/main/resources $ARTIFACT_ID/src/test $ARTIFACT_ID/src/test/resources 
+}
+
+function changeToProjectDir {
+  cd $ARTIFACT_ID
+}
+
+function makeSureProjectCanBuild {
+  mvn clean verify
+  if [ $? -ne 0 ]; then
+    echo 
+    echo ========================================================
+    echo A PROBLEM OCCURRED WHILE TRYING TO BUILD THE NEW PROJECT
+    echo ========================================================
+    echo
+    exit
+  fi
+}
+
+function uberJarPlugins {
+ if [ $MAKE_UBER_JAR = "Yes" ]; then
+  UBER_JAR_PLUGINS='
+           <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <appendAssemblyId>false</appendAssemblyId>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+'
+ fi
+}
+
+function openSourcePlugins {
+  if [ $IS_OPEN_SOURCE = "Yes" ]; then
+    OPEN_SOURCE_PLUGINS='
+            <plugin>
+                <groupId>com.mycila.maven-license-plugin</groupId>
+                <artifactId>maven-license-plugin</artifactId>
+                <version>1.5.0</version>
+                <configuration>
+                    <basedir>${basedir}</basedir>
+                    <header>${basedir}/LICENSE.txt</header>
+                    <quiet>false</quiet>
+                    <failIfMissing>true</failIfMissing>
+                    <aggregate>false</aggregate>
+                    <includes>
+                        <include>src/**</include>
+                        <include>**/test/**</include>
+                    </includes>
+                    <excludes>
+                        <exclude>**/test/resources/**</exclude>
+                    </excludes>
+                    <useDefaultExcludes>true</useDefaultExcludes>
+                    <useDefaultMapping>true</useDefaultMapping>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>format</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>2.5</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+'
+  
+   echo '
+Copyright to the original author or authors.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in
+compliance with the License. You may obtain a copy of the License at:
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is
+distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and limitations under the License.
+' > LICENSE.txt
+  fi
+}
+
+function releasePlugin {
+  if [ $IS_RELEASABLE = "Yes" ]; then
+   RELEASE_PLUGIN='
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-release-plugin</artifactId>
+                <version>2.0-beta-8</version>
+                <configuration>
+                    <autoVersionSubmodules>true</autoVersionSubmodules>
+                </configuration>
+            </plugin>
+'
+
+   SCM_URL="
+<scm>
+  <developerConnection>scm:git:git://github.com/born2snipe/$ARTIFACT_ID.git</developerConnection>
+</scm>
+"
+  fi
+}
+
+function createPomFile {
+  openSourcePlugins
+  uberJarPlugins
+  releasePlugin 
+
+  echo "<project xmlns='http://maven.apache.org/POM/4.0.0' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd'>
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>$GROUP_ID</groupId>
+    <artifactId>$ARTIFACT_ID</artifactId>
+    <packaging>jar</packaging>
+    <version>0.1-SNAPSHOT</version>
+    <name>$ARTIFACT_ID</name>
+   
+    $SCM_URL
+ 
+    <dependencies>
+    
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>1.7</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.5</version>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+     <plugins>
+
+      <plugin>
+       <groupId>org.apache.maven.plugins</groupId>
+       <artifactId>maven-compiler-plugin</artifactId>
+       <configuration>
+        <source>$JAVA_VERSION</source>
+        <target>$JAVA_VERSION</target>
+       </configuration>
+      </plugin>
+
+      $OPEN_SOURCE_PLUGINS
+      
+      $UBER_JAR_PLUGINS
+      
+      $RELEASE_PLUGIN
+     </plugins>
+    </build>
+</project>
+" > pom.xml
+}
+
+CONFIRMATION="Yes No"
+
+echo Enter your groupId?
+read GROUP_ID
+
+echo Enter your artifactId?
+read ARTIFACT_ID
+
+echo Compile source to what version of Java?
+JAVA_VERSIONS='1.4 1.5 1.6'
+select opt in $JAVA_VERSIONS; do
+ JAVA_VERSION=$opt
+ break
+done
+
+echo Open Source Project?
+select opt in $CONFIRMATION; do
+  IS_OPEN_SOURCE=$opt
+  break
+done
+
+echo Bundle the project as an Uber JAR?
+select opt in $CONFIRMATION; do
+  MAKE_UBER_JAR=$opt
+  break
+done
+
+echo Is releasable project?
+select opt in $CONFIRMATION; do
+  IS_RELEASABLE=$opt
+  break
+done
+
+setupMavenDirs
+changeToProjectDir
+createPomFile
+makeSureProjectCanBuild
+setupGit
