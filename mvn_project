@@ -11,7 +11,7 @@ function setupMavenDirs {
   mkdir $ARTIFACT_ID/src/main/java $ARTIFACT_ID/src/test/java
 
   if [ $SUPPORT_CUCUMBER = "Yes" ]; then
-    mkdir $ARTIFACT_ID/features
+    mkdir $ARTIFACT_ID/features $ARTIFACT_ID/features/step_definitions 
   fi
 }
 
@@ -203,15 +203,59 @@ function cucumberSupport {
   </execution>
  </executions>
 </plugin>
+
+<plugin>
+ <groupId>org.codehaus.groovy.maven</groupId>
+ <artifactId>gmaven-plugin</artifactId>
+ <executions>
+  <execution>
+   <goals>
+    <goal>testCompile</goal>
+   </goals>
+  </execution>
+ </executions>
+</plugin>
+
 '
+
     CUCUMBER_DEPS='
 <dependency>
-      <groupId>cuke4duke</groupId>
-      <artifactId>cuke4duke</artifactId>
-      <version>0.4.4</version>
-      <scope>test</scope>
-    </dependency>
+ <groupId>cuke4duke</groupId>
+ <artifactId>cuke4duke</artifactId>
+ <version>0.4.4</version>
+ <scope>test</scope>
+</dependency>
+
+<dependency>
+ <groupId>org.codehaus.groovy</groupId>
+ <artifactId>groovy-all</artifactId>
+ <version>1.8.0</version>
+ <scope>test</scope>
+</dependency>
 '
+
+echo '
+Feature: Simple
+ Simple feature
+
+ Scenario: Example
+  
+
+' > features/simple.feature
+
+echo '
+this.metaClass.mixin(cuke4duke.GroovyDsl)
+
+def message
+
+Given(~"I have the following message (.+)") { message ->
+ this.message = message
+}
+
+Then(~"the message should be (.+)") { expected ->
+  assert expected == message
+}
+' > features/step_definitions/SimpleStep.groovy
 
  fi
 }
