@@ -1,0 +1,9 @@
+#!/bin/bash
+
+DIR=$(cd $(dirname "$0"); pwd)
+
+echo '#!/bin/bash
+' > ~/.bash_profile
+
+cat $DIR/configs/*.config >> ~/.bash_profile
+
